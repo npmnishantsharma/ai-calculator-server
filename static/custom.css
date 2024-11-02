@@ -1,0 +1,12 @@
+.swagger-ui .topbar {
+    background-color: #ffffff;
+    padding: 10px 0;
+}
+
+.swagger-ui .topbar-wrapper img {
+    max-height: 50px;
+}
+
+.swagger-ui .topbar .wrapper {
+    padding: 0 20px;
+} 
