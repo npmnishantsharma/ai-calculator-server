@@ -20,7 +20,9 @@ async def run(data: ImageData, authorization: Optional[str] = Header(None)):
         token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
         
         # Verify token
+        print('token: ', token)
         if token != AUTH_TOKEN:
+
             raise HTTPException(status_code=401, detail="Invalid authorization token")
         
         image_data = base64.b64decode(data.image.split(",")[1])
