@@ -31,30 +31,43 @@ def analyze_image(img: Image, dict_of_vars: dict):
         f"5. Abstract Concepts: Analyze and explain concepts shown in drawings, using Markdown for clarity. Return in the format: "
         f"[{{'expr': description, 'result': concept, 'explanation': detailed Markdown explanation}}]. "
         
-        # Modified instructions for mandatory basic concepts and practice questions
+        # Modified instructions for mandatory basic concepts, practice questions, and quiz questions
         f"6. Basic Concepts (REQUIRED): For each topic identified in the image, you MUST provide: "
         f"   - A beginner-friendly explanation of the basic concepts involved "
         f"   - Step-by-step breakdown of the fundamental principles "
         f"   - Real-world examples to illustrate the concepts "
         f"   - If it's a drawing, explain the mathematical concepts it represents "
         
-        f"7. Practice Questions (REQUIRED): You MUST include 6-7 related questions: "
+        f"7. Practice Questions (REQUIRED): You MUST include 3-4 related questions: "
         f"   - For mathematical problems: include calculation-based questions "
         f"   - For drawings: include conceptual questions about the topic "
         f"   - Questions should be concise and fit in a bubble UI "
         f"   - Make questions engaging and thought-provoking "
+
+        f"8. Quiz Questions (REQUIRED when solution is provided): When you provide a solution, you MUST include: "
+        f"   - 15 multiple-choice questions in this format: "
+        f"   [{{"
+        f"       'question': 'Clear, concise question text',"
+        f"       'options': ['option1', 'option2', 'option3', 'option4'],"
+        f"       'correctAnswer': 'correct option',"
+        f"       'explanation': 'Why this answer is correct'"
+        f"   }}] "
+        f"   - Questions should test understanding of the concepts "
+        f"   - Include a mix of difficulty levels "
+        f"   - Ensure explanations are educational "
         
         f"Format the response to include: "
         f"   'expr': The expression or description "
         f"   'result': The solution or concept "
         f"   'explanation': Detailed explanation in Markdown "
         f"   'basic_concepts': Comprehensive explanation of fundamentals (REQUIRED) "
-        f"   'practice_questions': Array of engaging questions (REQUIRED, minimum 3) "
+        f"   'practice_questions': Array of engaging questions (REQUIRED) "
+        f"   'quiz_questions': Array of MCQ questions (REQUIRED when solution is provided) "
         
         f"Use extra backslashes for escape characters like \\f -> \\\\f, \\n -> \\\\n, etc. "
         f"Here is a dictionary of user-assigned variables. If the given expression has any of these variables, use its actual value: {dict_of_vars_str}. "
         
-        f"IMPORTANT: Every response MUST include both 'basic_concepts' and 'practice_questions' fields with meaningful content, regardless of the input type."
+        f"IMPORTANT: Every response MUST include 'basic_concepts' and 'practice_questions' fields. Include 'quiz_questions' when a solution is provided."
     )
     
     response = model.generate_content([prompt, img])
@@ -64,13 +77,52 @@ def analyze_image(img: Image, dict_of_vars: dict):
         cleaned_response = clean_gemini_response(response.text)
         
         try:
+            # Ensure we're getting a list of dictionaries
             answers = json.loads(cleaned_response)
+            if not isinstance(answers, list):
+                answers = [answers]
+            
+            # Validate each answer is a dictionary with required fields
+            validated_answers = []
+            for answer in answers:
+                if isinstance(answer, dict):
+                    validated_answer = {
+                        'expr': answer.get('expr', 'No expression provided'),
+                        'result': answer.get('result', 'No result available'),
+                        'explanation': answer.get('explanation', 'No explanation available'),
+                        'basic_concepts': answer.get('basic_concepts', 'Basic concepts not provided'),
+                        'practice_questions': answer.get('practice_questions', [
+                            'How would you approach this problem?',
+                            'What concepts are involved?',
+                            'Can you solve a similar problem?'
+                        ]),
+                        'quiz_questions': answer.get('quiz_questions', []),
+                        'assign': 'assign' in answer
+                    }
+                    validated_answers.append(validated_answer)
+            
+            return validated_answers if validated_answers else [{
+                'expr': 'Error processing input',
+                'result': 'Unable to analyze',
+                'explanation': 'Could not parse the AI response properly.',
+                'basic_concepts': 'Mathematical problem-solving involves understanding the given information and applying relevant concepts to find a solution.',
+                'practice_questions': [
+                    'Can you identify the key components in this problem?',
+                    'What mathematical concepts might be relevant here?',
+                    'How would you approach solving this step by step?'
+                ],
+                'quiz_questions': []
+            }]
+            
         except json.JSONDecodeError:
-            answers = ast.literal_eval(cleaned_response)
+            print("JSON decode error, trying ast.literal_eval")
+            raw_answers = ast.literal_eval(cleaned_response)
+            if isinstance(raw_answers, list):
+                return raw_answers
+            return [raw_answers]
             
     except Exception as e:
         print(f"Error in parsing response from Gemini API: {e}")
-        # Provide default response if parsing fails
         return [{
             'expr': 'Error processing input',
             'result': 'Unable to analyze',
@@ -81,26 +133,71 @@ def analyze_image(img: Image, dict_of_vars: dict):
                 'What mathematical concepts might be relevant here?',
                 'How would you approach solving this step by step?'
             ],
-            'assign': False
+            'quiz_questions': []
         }]
 
-    print('Parsed answer:', answers)
+def generate_quiz_questions(topic: str, concepts: str, number_of_questions: int = 15):
+    model = genai.GenerativeModel(model_name="gemini-1.5-flash")
     
-    # Process and validate the answers
-    for answer in answers:
-        if isinstance(answer, dict):
-            answer['assign'] = 'assign' in answer
-            
-            # Ensure basic_concepts exists and has content
-            if 'basic_concepts' not in answer or not answer['basic_concepts']:
-                answer['basic_concepts'] = 'This involves understanding mathematical concepts and applying them to solve problems systematically.'
-            
-            # Ensure practice_questions exists and has at least 3 questions
-            if 'practice_questions' not in answer or len(answer['practice_questions']) < 3:
-                answer['practice_questions'] = [
-                    'How would you approach this problem step by step?',
-                    'Can you identify the key concepts involved?',
-                    'What similar problems can you think of?'
-                ]
-            
-    return answers
+    prompt = f"""
+    Generate {number_of_questions} multiple-choice quiz questions about {topic}. 
+    Use these concepts as reference: {concepts}
+    
+    Each question should:
+    1. Be clear and concise
+    2. Have 4 options (A, B, C, D)
+    3. Include one correct answer
+    4. Include a brief explanation of why the answer is correct
+    
+    Format each question as a JSON object with these fields:
+    - question: The question text
+    - options: Array of 4 possible answers
+    - correctAnswer: The correct answer
+    - explanation: Why this answer is correct
+    
+    Return an array of these question objects.
+    
+    Example format:
+    [
+        {{
+            "question": "What is 2 + 2?",
+            "options": ["3", "4", "5", "6"],
+            "correctAnswer": "4",
+            "explanation": "2 + 2 equals 4 because..."
+        }},
+        ...
+    ]
+    """
+    
+    try:
+        response = model.generate_content(prompt)
+        cleaned_response = clean_gemini_response(response.text)
+        questions = json.loads(cleaned_response)
+        
+        # Validate and format questions
+        formatted_questions = []
+        for q in questions:
+            if all(key in q for key in ['question', 'options', 'correctAnswer', 'explanation']):
+                formatted_questions.append({
+                    'question': q['question'],
+                    'options': q['options'],
+                    'correctAnswer': q['correctAnswer'],
+                    'explanation': q['explanation']
+                })
+        
+        return formatted_questions[:number_of_questions]  # Ensure we return exactly the requested number
+        
+    except Exception as e:
+        print(f"Error generating quiz questions: {str(e)}")
+        # Return some default questions if generation fails
+        return [{
+            'question': 'There was an error generating custom questions. Here is a sample question.',
+            'options': [
+                'Option A',
+                'Option B',
+                'Option C',
+                'Option D'
+            ],
+            'correctAnswer': 'Option A',
+            'explanation': 'This is a sample question due to an error in generation.'
+        }]

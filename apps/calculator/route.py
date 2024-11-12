@@ -29,17 +29,37 @@ async def run(data: ImageData, authorization: Optional[str] = Header(None)):
         image_bytes = BytesIO(image_data)
         image = Image.open(image_bytes)
         responses = analyze_image(image, dict_of_vars=data.dict_of_vars)
-        print('responses: ', responses)
-        data = []
-        for response in responses:
-            data.append(response)
         
-        print('responses in route: ', responses)
-        return {"message": "Image processed", "data": data, "status": "success"}
+        # Ensure responses is a list of dictionaries with all required fields
+        if not responses or not isinstance(responses, list):
+            responses = [{
+                'expr': 'Error processing input',
+                'result': 'Unable to analyze',
+                'explanation': 'Invalid response format from analysis.',
+                'basic_concepts': 'Mathematical problem-solving basics.',
+                'practice_questions': ['Can you identify the problem?'],
+                'quiz_questions': []
+            }]
+        
+        return {
+            "message": "Image processed",
+            "data": responses,  # This should now be a list of properly formatted dictionaries
+            "status": "success"
+        }
     
     except HTTPException as he:
-        # Re-raise HTTP exceptions
         raise he
     except Exception as e:
         print(f"Error processing image: {str(e)}")
-        return {"message": "Error processing image", "data": [], "status": "error", "error": str(e)}
+        return {
+            "message": "Error processing image",
+            "data": [{
+                'expr': 'Error occurred',
+                'result': 'Processing failed',
+                'explanation': str(e),
+                'basic_concepts': 'Error occurred during processing.',
+                'practice_questions': ['Please try again.'],
+                'quiz_questions': []
+            }],
+            "status": "error"
+        }
