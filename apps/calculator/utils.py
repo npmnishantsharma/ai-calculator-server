@@ -55,6 +55,7 @@ def analyze_image(img: Image, dict_of_vars: dict):
         f"   - Questions should test understanding of the concepts "
         f"   - Include a mix of difficulty levels "
         f"   - Ensure explanations are educational "
+        f"   -GIVING QUIZ QUESTIONS IS COMPULSORY. EXCEPT IT YOU CANNOT GIVE ANSWER"
         
         f"Format the response to include: "
         f"   'expr': The expression or description "
@@ -147,23 +148,42 @@ def generate_quiz_questions(topic: str, concepts: str, number_of_questions: int 
     1. Be clear and concise
     2. Have 4 options (A, B, C, D)
     3. Include one correct answer
-    4. Include a brief explanation of why the answer is correct
+    4. Include a comprehensive explanation that:
+       - Starts from basic principles
+       - Explains the concept in detail
+       - Provides step-by-step reasoning
+       - Can be shown to users who answer incorrectly
+    5. Include a real-life application or example of the concept
     
     Format each question as a JSON object with these fields:
     - question: The question text
     - options: Array of 4 possible answers
     - correctAnswer: The correct answer
-    - explanation: Why this answer is correct
+    - explanation: Detailed explanation from basics (shown if answer is wrong)
+    - realLifeUsage: A practical application or example of the concept
     
     Return an array of these question objects.
     
     Example format:
     [
         {{
-            "question": "What is 2 + 2?",
-            "options": ["3", "4", "5", "6"],
-            "correctAnswer": "4",
-            "explanation": "2 + 2 equals 4 because..."
+            "question": "What is the result of 2^3?",
+            "options": ["4", "6", "8", "16"],
+            "correctAnswer": "8",
+            "explanation": "To understand 2^3, let's start with the basics of exponents. An exponent tells us how many times to multiply a number (the base) by itself. In this case, 2^3 means:
+
+            2 × 2 × 2 = 8
+
+            Step-by-step:
+            1. Start with 2
+            2. Multiply by 2 once: 2 × 2 = 4
+            3. Multiply by 2 again: 4 × 2 = 8
+
+            This is different from 2 × 3, which would be 6. With exponents, we're multiplying the base (2) by itself as many times as the exponent (3) indicates.",
+            "realLifeUsage": "Exponents are widely used in real life. For example:
+            1. In computer science, file sizes often use powers of 2 (2^10 bytes = 1 kilobyte, 2^20 bytes = 1 megabyte).
+            2. In biology, bacterial growth can often be modeled using exponential functions.
+            3. In finance, compound interest calculations use exponents to determine how investments grow over time."
         }},
         ...
     ]
@@ -177,12 +197,13 @@ def generate_quiz_questions(topic: str, concepts: str, number_of_questions: int 
         # Validate and format questions
         formatted_questions = []
         for q in questions:
-            if all(key in q for key in ['question', 'options', 'correctAnswer', 'explanation']):
+            if all(key in q for key in ['question', 'options', 'correctAnswer', 'explanation', 'realLifeUsage']):
                 formatted_questions.append({
                     'question': q['question'],
                     'options': q['options'],
                     'correctAnswer': q['correctAnswer'],
-                    'explanation': q['explanation']
+                    'explanation': q['explanation'],
+                    'realLifeUsage': q['realLifeUsage']
                 })
         
         return formatted_questions[:number_of_questions]  # Ensure we return exactly the requested number
@@ -199,5 +220,6 @@ def generate_quiz_questions(topic: str, concepts: str, number_of_questions: int 
                 'Option D'
             ],
             'correctAnswer': 'Option A',
-            'explanation': 'This is a sample question due to an error in generation.'
+            'explanation': 'This is a sample question due to an error in generation. In a real scenario, this explanation would provide a comprehensive breakdown of the concept, starting from basic principles and explaining step-by-step how to arrive at the correct answer.',
+            'realLifeUsage': 'In a real scenario, this would describe a practical application or example of how this concept is used in everyday life or in specific fields.'
         }]
