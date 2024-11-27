@@ -16,7 +16,7 @@ def clean_gemini_response(response_text: str) -> str:
     return response_text.strip()
 
 def analyze_image(img: Image, dict_of_vars: dict):
-    model = genai.GenerativeModel(model_name="gemini-1.5-flash")
+    model = genai.GenerativeModel(model_name="learnlm-1.5-pro-experimental")
     dict_of_vars_str = json.dumps(dict_of_vars, ensure_ascii=False)
     prompt = (
         f"You have been given an image with some mathematical expressions, equations, or graphical problems, and you need to solve them. "
