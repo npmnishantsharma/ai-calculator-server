@@ -11,20 +11,20 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Restrict CORS to allow only the specified URL
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=["https://mathsketch.nishantapps.in"],  # Allow only this URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get('/')
+@app.get("/")
 async def root():
     return {"message": "Server is running"}
 
 app.include_router(calculator_router, prefix="/calculate", tags=["calculate"])
-
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host=SERVER_URL, port=int(PORT), reload=(ENV == "dev"))
